@@ -1,0 +1,91 @@
+#!/bin/bash
+
+# ps_tool - CLI pour exécuter des ensembles de commandes macOS
+# Point d'entrée principal
+
+# Déterminer le répertoire du script (gère les liens symboliques)
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+if [ -L "$SCRIPT_PATH" ]; then
+    # Si c'est un lien symbolique, résoudre le chemin réel
+    SCRIPT_DIR="$(cd "$(dirname "$(readlink "$SCRIPT_PATH")")" && pwd)"
+else
+    SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+fi
+
+# Si SCRIPT_DIR pointe vers /usr/local/bin, utiliser PS_TOOL_INSTALL_DIR
+if [ "$SCRIPT_DIR" = "/usr/local/bin" ] || [ "$SCRIPT_DIR" = "/usr/bin" ]; then
+    if [ -n "$PS_TOOL_INSTALL_DIR" ] && [ -d "$PS_TOOL_INSTALL_DIR" ]; then
+        SCRIPT_DIR="$PS_TOOL_INSTALL_DIR"
+    else
+        # Fallback vers le répertoire par défaut
+        SCRIPT_DIR="${HOME}/.ps_tool"
+    fi
+fi
+
+# Charger les utilitaires et la configuration
+source "${SCRIPT_DIR}/lib/config.sh"
+source "${SCRIPT_DIR}/lib/utils.sh"
+
+# Fonction d'aide
+show_help() {
+    cat << EOF
+ps_tool - CLI pour exécuter des ensembles de commandes macOS
+
+Usage:
+    ps_tool <command> [options]
+
+Commands:
+    shop <command>    Gérer les shops PrestaShop
+    version           Afficher la version actuelle
+    list              Lister les shops créés
+    help              Afficher cette aide
+
+Examples:
+    ps_tool shop install shop18
+    ps_tool shop list
+    ps_tool version
+
+Pour plus d'informations, consultez le README.md
+EOF
+}
+
+# Fonction principale
+main() {
+    # Vérifier qu'au moins une commande est fournie
+    if [ $# -eq 0 ]; then
+        error "Aucune commande spécifiée"
+        show_help
+        exit 1
+    fi
+
+    local command="$1"
+    shift
+
+    case "$command" in
+        shop)
+            source "${SCRIPT_DIR}/lib/commands/shop.sh"
+            cmd_shop "$@"
+            ;;
+        version)
+            source "${SCRIPT_DIR}/lib/commands/version.sh"
+            cmd_version "$@"
+            ;;
+        list)
+            source "${SCRIPT_DIR}/lib/commands/shop.sh"
+            cmd_shop "list" "$@"
+            ;;
+        help|--help|-h)
+            show_help
+            exit 0
+            ;;
+        *)
+            error "Commande inconnue: $command"
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+# Exécuter la fonction principale
+main "$@"
+

@@ -1,0 +1,18 @@
+# Fichiers de configuration locaux
+.ps_tool/
+*.local
+
+# Fichiers temporaires
+*.tmp
+*.log
+.DS_Store
+
+# Fichiers de sauvegarde
+*.bak
+*.swp
+*~
+
+# Fichiers d'environnement
+.env
+.env.local
+
