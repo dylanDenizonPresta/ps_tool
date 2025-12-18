@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ps_tool - CLI pour exécuter des ensembles de commandes macOS
+# ps_tool - CLI pour exécuter des ensembles de commandes
 # Point d'entrée principal
 
 # Déterminer le répertoire du script (gère les liens symboliques)
@@ -29,19 +29,21 @@ source "${SCRIPT_DIR}/lib/utils.sh"
 # Fonction d'aide
 show_help() {
     cat << EOF
-ps_tool - CLI pour exécuter des ensembles de commandes macOS
+ps_tool - CLI pour exécuter des ensembles de commandes
 
 Usage:
     ps_tool <command> [options]
 
 Commands:
     shop <command>    Gérer les shops PrestaShop
+    mbo <command>     Gérer le module ps_mbo
     version           Afficher la version actuelle
     list              Lister les shops créés
     help              Afficher cette aide
 
 Examples:
     ps_tool shop install shop18
+    ps_tool mbo install shop18
     ps_tool shop list
     ps_tool version
 
@@ -65,6 +67,10 @@ main() {
         shop)
             source "${SCRIPT_DIR}/lib/commands/shop.sh"
             cmd_shop "$@"
+            ;;
+        mbo)
+            source "${SCRIPT_DIR}/lib/commands/mbo.sh"
+            cmd_mbo "$@"
             ;;
         version)
             source "${SCRIPT_DIR}/lib/commands/version.sh"

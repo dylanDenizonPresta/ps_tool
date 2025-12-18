@@ -107,6 +107,38 @@ get_shop_ports_from_registry() {
     return 1
 }
 
+# Fonction pour obtenir la version PrestaShop d'un shop depuis le registre
+# Usage: get_shop_prestashop_version <nom_shop>
+# Retourne la version PrestaShop ou une chaîne vide si non trouvé
+get_shop_prestashop_version() {
+    local shop_name="$1"
+    
+    # Charger la configuration si nécessaire
+    if [ -z "$PS_TOOL_SHOPS_REGISTRY" ]; then
+        if [ -f "${SCRIPT_DIR}/lib/config.sh" ]; then
+            source "${SCRIPT_DIR}/lib/config.sh"
+        else
+            PS_TOOL_SHOPS_REGISTRY="${HOME}/.ps_tool/shops.txt"
+        fi
+    fi
+    
+    # Vérifier si le fichier existe
+    if [ ! -f "$PS_TOOL_SHOPS_REGISTRY" ]; then
+        return 1
+    fi
+    
+    # Chercher le shop dans le registre
+    # Format: shop_name|shop_path|prestashop_version|http_port|https_port
+    while IFS='|' read -r name path version http_port https_port; do
+        if [ "$name" = "$shop_name" ]; then
+            echo "$version"
+            return 0
+        fi
+    done < "$PS_TOOL_SHOPS_REGISTRY"
+    
+    return 1
+}
+
 # Fonction pour enregistrer un shop dans le registre
 # Usage: register_shop <nom_shop> <chemin> [version_prestashop] [http_port] [https_port]
 # Format du registre: shop_name|shop_path|prestashop_version|http_port|https_port

@@ -33,6 +33,7 @@ Arguments:
 Options:
     --router-http-port <port>    Port HTTP du routeur ddev (défaut: auto)
     --router-https-port <port>   Port HTTPS du routeur ddev (défaut: auto)
+    --webserver-type <type>      Type de webserver (nginx-fpm, apache-fpm) (défaut: apache-fpm)
     --admin-email <email>        Email de l'administrateur (défaut: admin@prestashop.com)
     --admin-password <password>  Mot de passe admin (défaut: presta123)
     --shop-name <name>           Nom de la boutique (défaut: nom du shop)
@@ -40,6 +41,8 @@ Options:
     --language <code>            Code langue (défaut: fr)
     --timezone <timezone>        Fuseau horaire (défaut: Europe/Paris)
     --currency <code>            Code devise (défaut: EUR)
+    --ssl                        Activer SSL/HTTPS (défaut: activé)
+    -m, --manual                 Installation manuelle via l'interface web (pas d'installation CLI automatique)
     --help, -h                    Afficher cette aide
 
 Exemples:
@@ -48,12 +51,16 @@ Exemples:
     ps_tool shop install shop18 8.2.3
     ps_tool shop install shop18 9.0.2 --router-http-port 8080 --router-https-port 8443
     ps_tool shop install shop18 --admin-email admin@example.com --admin-password MyPass123
+    ps_tool shop install shop18 --webserver-type apache-fpm
+    ps_tool shop install shop18 -m
+    ps_tool shop install shop18 --manual
 
 La commande va:
     1. Télécharger PrestaShop depuis GitHub
     2. Extraire les fichiers à la racine du répertoire courant
     3. Configurer ddev avec la version PHP appropriée et les ports spécifiés
     4. Installer PrestaShop automatiquement via CLI (sans interface web)
+       (sauf si l'option -m/--manual est utilisée, auquel cas l'installation se fera via l'interface web)
 
 Pour lister les versions disponibles, consultez le fichier de configuration.
 EOF
@@ -71,6 +78,7 @@ EOF
     local prestashop_version="$PRESTASHOP_DEFAULT_VERSION"
     local router_http_port=""
     local router_https_port=""
+    local webserver_type="apache-fpm"
     
     # Options d'installation CLI avec valeurs par défaut
     local admin_email="admin@prestashop.com"
@@ -80,6 +88,8 @@ EOF
     local language="fr"
     local timezone="Europe/Paris"
     local currency="EUR"
+    local enable_ssl=true
+    local manual_install=false
     
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -97,6 +107,18 @@ EOF
                     return 1
                 fi
                 router_https_port="$2"
+                shift 2
+                ;;
+            --webserver-type)
+                if [ $# -lt 2 ]; then
+                    error "Option --webserver-type nécessite un type (nginx-fpm ou apache-fpm)"
+                    return 1
+                fi
+                if [ "$2" != "nginx-fpm" ] && [ "$2" != "apache-fpm" ]; then
+                    error "Type de webserver invalide: $2 (valeurs acceptées: nginx-fpm, apache-fpm)"
+                    return 1
+                fi
+                webserver_type="$2"
                 shift 2
                 ;;
             --admin-email)
@@ -154,6 +176,14 @@ EOF
                 fi
                 currency="$2"
                 shift 2
+                ;;
+            --ssl)
+                enable_ssl=true
+                shift
+                ;;
+            -m|--manual)
+                manual_install=true
+                shift
                 ;;
             --help|-h)
                 # Aide déjà affichée au début
@@ -459,8 +489,8 @@ EOF
         # Obtenir la version PHP requise depuis la configuration
         local php_version=$(get_prestashop_php_version "$prestashop_version")
         
-        # Construire la commande ddev config avec les ports
-        local ddev_config_cmd="ddev config --project-type=php --project-name=$shop_name --docroot=$docroot --php-version=$php_version --router-http-port=$router_http_port --router-https-port=$router_https_port"
+        # Construire la commande ddev config avec les ports et le type de webserver
+        local ddev_config_cmd="ddev config --project-type=php --project-name=$shop_name --docroot=$docroot --php-version=$php_version --webserver-type=$webserver_type --router-http-port=$router_http_port --router-https-port=$router_https_port"
         
         # Essayer de configurer ddev et capturer la sortie
         local config_output
@@ -535,12 +565,22 @@ EOF
         info "Vous pouvez démarrer manuellement avec: ddev start"
     fi
     
-    # Installer PrestaShop via CLI si ddev est démarré
-    if [ "$ddev_started" = true ]; then
-        _install_prestashop_cli "$current_dir" "$shop_name" "$admin_email" "$admin_password" "$shop_name_option" "$country" "$language" "$timezone" "$currency" "$router_http_port" "$router_https_port"
+    # Installer PrestaShop via CLI si ddev est démarré et que l'installation manuelle n'est pas demandée
+    if [ "$manual_install" = false ]; then
+        if [ "$ddev_started" = true ]; then
+            _install_prestashop_cli "$current_dir" "$shop_name" "$admin_email" "$admin_password" "$shop_name_option" "$country" "$language" "$timezone" "$currency" "$router_http_port" "$router_https_port" "$enable_ssl"
+        else
+            warning "Installation CLI de PrestaShop ignorée (ddev non démarré)"
+            info "Après avoir démarré ddev manuellement, vous pouvez installer PrestaShop via l'interface web avec: ddev launch"
+        fi
     else
-        warning "Installation CLI de PrestaShop ignorée (ddev non démarré)"
-        info "Après avoir démarré ddev manuellement, vous pouvez installer PrestaShop via l'interface web avec: ddev launch"
+        info "Installation manuelle activée - PrestaShop sera installé via l'interface web"
+        if [ "$ddev_started" = true ]; then
+            info "Accédez à l'interface d'installation avec: ddev launch"
+        else
+            info "Démarrez ddev avec: ddev start"
+            info "Puis accédez à l'interface d'installation avec: ddev launch"
+        fi
     fi
     
     success "Installation terminée !"
@@ -549,7 +589,7 @@ EOF
 }
 
 # Fonction pour installer PrestaShop via CLI
-# Usage: _install_prestashop_cli <chemin> <shop_name> <admin_email> <admin_password> <shop_name_option> <country> <language> <timezone> <currency> <http_port> <https_port>
+# Usage: _install_prestashop_cli <chemin> <shop_name> <admin_email> <admin_password> <shop_name_option> <country> <language> <timezone> <currency> <http_port> <https_port> <enable_ssl>
 _install_prestashop_cli() {
     local shop_path="$1"
     local shop_name="$2"
@@ -562,6 +602,7 @@ _install_prestashop_cli() {
     local currency="$9"
     local http_port="${10}"
     local https_port="${11}"
+    local enable_ssl="${12}"
     
     # Vérifier que ddev est démarré
     if ! command_exists ddev; then
@@ -621,36 +662,34 @@ _install_prestashop_cli() {
     # Construire et exécuter la commande ddev exec
     # ddev exec exécute la commande dans le conteneur web
     local install_output
-    if [ -n "$shop_name_option" ]; then
-        install_output=$(cd "$shop_path" && ddev exec php "$install_script" \
-            --domain="$domain" \
-            --db_server=db \
-            --db_name=db \
-            --db_user=db \
-            --db_password=db \
-            --email="$admin_email" \
-            --password="$admin_password" \
-            --country="$country" \
-            --language="$language" \
-            --timezone="$timezone" \
-            --currency="$currency" \
-            --shop_name="$shop_name_option" \
-            2>&1)
-    else
-        install_output=$(cd "$shop_path" && ddev exec php "$install_script" \
-            --domain="$domain" \
-            --db_server=db \
-            --db_name=db \
-            --db_user=db \
-            --db_password=db \
-            --email="$admin_email" \
-            --password="$admin_password" \
-            --country="$country" \
-            --language="$language" \
-            --timezone="$timezone" \
-            --currency="$currency" \
-            2>&1)
+    
+    # Construire les arguments de base
+    local base_args=(
+        "--domain=$domain"
+        "--db_server=db"
+        "--db_name=db"
+        "--db_user=db"
+        "--db_password=db"
+        "--email=$admin_email"
+        "--password=$admin_password"
+        "--country=$country"
+        "--language=$language"
+        "--timezone=$timezone"
+        "--currency=$currency"
+    )
+    
+    # Ajouter --ssl=1 si SSL est activé
+    if [ "$enable_ssl" = true ]; then
+        base_args+=("--ssl=1")
     fi
+    
+    # Ajouter --shop_name si spécifié
+    if [ -n "$shop_name_option" ]; then
+        base_args+=("--shop_name=$shop_name_option")
+    fi
+    
+    # Exécuter la commande
+    install_output=$(cd "$shop_path" && ddev exec php "$install_script" "${base_args[@]}" 2>&1)
     local install_exit_code=$?
     
     if [ $install_exit_code -eq 0 ]; then

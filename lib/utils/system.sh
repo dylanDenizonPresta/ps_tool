@@ -2,11 +2,6 @@
 
 # Utilitaires système et détection d'environnement
 
-# Fonction pour vérifier si on est sur macOS
-is_macos() {
-    [[ "$(uname)" == "Darwin" ]]
-}
-
 # Fonction pour vérifier si le répertoire est un repo git
 is_git_repo() {
     [ -d "$1/.git" ]
