@@ -38,6 +38,7 @@ Commands:
     start <nom_shop>                 Démarrer un shop PrestaShop
     stop <nom_shop>                  Arrêter un shop PrestaShop
     remove <nom_shop> [options]      Supprimer un shop PrestaShop
+    clean <nom_shop> [options]       Nettoyer le cache et fichiers temporaires
     version                          Afficher les versions PrestaShop disponibles
     help                             Afficher cette aide
 
@@ -49,6 +50,8 @@ Exemples:
     ps_tool shop stop shop18
     ps_tool shop remove shop18
     ps_tool shop remove shop18 --files
+    ps_tool shop clean shop18
+    ps_tool shop clean shop18 --cache-only
 
 Pour plus d'informations sur une commande:
     ps_tool shop <command> --help
@@ -111,6 +114,14 @@ cmd_shop() {
                 cmd_shop_version "$@"
             else
                 error "La commande 'version' n'est pas disponible"
+                exit 1
+            fi
+            ;;
+        clean)
+            if function_exists "cmd_shop_clean"; then
+                cmd_shop_clean "$@"
+            else
+                error "La commande 'clean' n'est pas disponible"
                 exit 1
             fi
             ;;

@@ -39,6 +39,8 @@ Usage:
 Commands:
     install <nom_shop> [version]    Installer le module ps_mbo dans un shop
     use <environment> <nom_shop>     Configurer l'environnement du module ps_mbo
+    status <nom_shop>                Afficher la configuration actuelle de ps_mbo
+    version                           Afficher les versions disponibles de ps_mbo
     help                             Afficher cette aide
 
 Exemples:
@@ -46,6 +48,8 @@ Exemples:
     ps_tool mbo install shop18 5.2.1
     ps_tool mbo use PROD shop18
     ps_tool mbo use PREPROD shop18
+    ps_tool mbo status shop18
+    ps_tool mbo version
 
 Pour plus d'informations sur une commande:
     ps_tool mbo <command> --help
@@ -76,6 +80,22 @@ cmd_mbo() {
                 cmd_mbo_use "$@"
             else
                 error "La commande 'use' n'est pas disponible"
+                exit 1
+            fi
+            ;;
+        status)
+            if function_exists "cmd_mbo_status"; then
+                cmd_mbo_status "$@"
+            else
+                error "La commande 'status' n'est pas disponible"
+                exit 1
+            fi
+            ;;
+        version)
+            if function_exists "cmd_mbo_version"; then
+                cmd_mbo_version "$@"
+            else
+                error "La commande 'version' n'est pas disponible"
                 exit 1
             fi
             ;;

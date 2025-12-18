@@ -20,6 +20,9 @@ get_ps_mbo_url() {
         "4.14.1")
             echo "https://github.com/PrestaShopCorp/ps_mbo/releases/download/v4.14.1/ps_mbo_v4.14.1.zip"
             ;;
+        "4.13.4")
+            echo "https://github.com/PrestaShopCorp/ps_mbo/releases/download/v4.13.4/ps_mbo_v4.13.4.zip"
+            ;;
         # Versions 3.x (PrestaShop 1.7.7 & 1.7.8)
         "3.3.1")
             echo "https://github.com/PrestaShopCorp/ps_mbo/releases/download/v3.3.1/ps_mbo.zip"
@@ -39,8 +42,11 @@ get_ps_mbo_version_for_prestashop() {
             echo "5.2.1"
             ;;
         # PrestaShop 8.x -> ps_mbo v4.x
-        "8.2.3"|"8.2.2"|"8.2.1"|"8.2.0"|"8.1.7"|"8.1.6"|"8.1.5"|"8.1.4"|"8.1.3"|"8.1.2"|"8.1.1"|"8.1.0"|"8.0.7"|"8.0.6"|"8.0.5"|"8.0.4"|"8.0.3"|"8.0.2"|"8.0.1"|"8.0.0")
+        "8.2.3"|"8.2.2"|"8.2.1"|"8.2.0")
             echo "4.14.1"
+            ;;
+        "8.1.7"|"8.1.6"|"8.1.5"|"8.1.4"|"8.1.3"|"8.1.2"|"8.1.1"|"8.1.0"|"8.0.7"|"8.0.6"|"8.0.5"|"8.0.4"|"8.0.3"|"8.0.2"|"8.0.1"|"8.0.0")
+            echo "4.13.4"
             ;;
         # PrestaShop 1.7.x -> ps_mbo v3.x
         "1.7.8.10"|"1.7.8.9"|"1.7.8.8"|"1.7.7"|"1.7.8")
