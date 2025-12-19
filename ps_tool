@@ -37,15 +37,17 @@ Usage:
 Commands:
     shop <command>    Gérer les shops PrestaShop
     mbo <command>     Gérer le module ps_mbo
-    version           Afficher la version actuelle
-    list              Lister les shops créés
-    help              Afficher cette aide
+    account <command>  Gérer le module ps_accounts
+    version, -v       Afficher la version actuelle
+    help, -h          Afficher cette aide
 
 Examples:
     ps_tool shop install shop18
     ps_tool mbo install shop18
+    ps_tool account install shop18
     ps_tool shop list
     ps_tool version
+    ps_tool -v
 
 Pour plus d'informations, consultez le README.md
 EOF
@@ -72,13 +74,13 @@ main() {
             source "${SCRIPT_DIR}/lib/commands/mbo.sh"
             cmd_mbo "$@"
             ;;
-        version)
+        account)
+            source "${SCRIPT_DIR}/lib/commands/account.sh"
+            cmd_account "$@"
+            ;;
+        version|-v)
             source "${SCRIPT_DIR}/lib/commands/version.sh"
             cmd_version "$@"
-            ;;
-        list)
-            source "${SCRIPT_DIR}/lib/commands/shop.sh"
-            cmd_shop "list" "$@"
             ;;
         help|--help|-h)
             show_help

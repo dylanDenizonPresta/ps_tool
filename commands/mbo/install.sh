@@ -3,7 +3,6 @@
 # Installation du module ps_mbo dans un shop PrestaShop
 
 # Charger les utilitaires (init_script_dir sera appelé automatiquement)
-# On doit d'abord trouver le répertoire pour charger utils.sh
 SCRIPT_DIR_TMP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "${SCRIPT_DIR_TMP}/lib/utils.sh"
 
@@ -20,9 +19,13 @@ if [ -f "${SCRIPT_DIR}/config/ps_mbo.sh" ]; then
     source "${SCRIPT_DIR}/config/ps_mbo.sh"
 fi
 
+# Charger les fonctions de gestion des shops
+if [ -f "${SCRIPT_DIR}/lib/utils/shops.sh" ]; then
+    source "${SCRIPT_DIR}/lib/utils/shops.sh"
+fi
 
 # Commande principale pour installer ps_mbo
-cmd_shop_mbo_install() {
+cmd_mbo_install() {
     # Afficher l'aide si demandé
     if [ $# -eq 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
         cat << EOF

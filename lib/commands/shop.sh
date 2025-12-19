@@ -33,18 +33,20 @@ Usage:
     ps_tool shop <command> [options]
 
 Commands:
-    install <nom_shop> [version]    Installer une shop PrestaShop
-    list                             Lister tous les shops créés
-    start <nom_shop>                 Démarrer un shop PrestaShop
-    stop <nom_shop>                  Arrêter un shop PrestaShop
-    remove <nom_shop> [options]      Supprimer un shop PrestaShop
-    clean <nom_shop> [options]       Nettoyer le cache et fichiers temporaires
-    version                          Afficher les versions PrestaShop disponibles
-    help                             Afficher cette aide
+    install, -i <nom_shop> [version]    Installer une shop PrestaShop
+    list                                 Lister tous les shops créés
+    start <nom_shop>                     Démarrer un shop PrestaShop
+    stop <nom_shop>                      Arrêter un shop PrestaShop
+    remove <nom_shop> [options]          Supprimer un shop PrestaShop
+    clean <nom_shop> [options]           Nettoyer le cache et fichiers temporaires
+    version, -v                          Afficher les versions PrestaShop disponibles
+    help, -h                             Afficher cette aide
 
 Exemples:
     ps_tool shop install shop18
+    ps_tool shop -i shop18
     ps_tool shop install shop18 9.0.2
+    ps_tool shop -i shop18 9.0.2
     ps_tool shop list
     ps_tool shop start shop18
     ps_tool shop stop shop18
@@ -69,7 +71,7 @@ cmd_shop() {
     shift
 
     case "$subcommand" in
-        install)
+        install|-i)
             if function_exists "cmd_shop_install"; then
                 cmd_shop_install "$@"
             else
@@ -109,7 +111,7 @@ cmd_shop() {
                 exit 1
             fi
             ;;
-        version)
+        version|-v)
             if function_exists "cmd_shop_version"; then
                 cmd_shop_version "$@"
             else

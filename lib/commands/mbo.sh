@@ -14,11 +14,6 @@ if [ -f "${SCRIPT_DIR}/config/ps_mbo.sh" ]; then
     source "${SCRIPT_DIR}/config/ps_mbo.sh"
 fi
 
-# Charger le script d'installation depuis commands/shop/mbo.sh
-if [ -f "${SCRIPT_DIR}/commands/shop/mbo.sh" ]; then
-    source "${SCRIPT_DIR}/commands/shop/mbo.sh"
-fi
-
 # Charger toutes les sous-commandes mbo depuis commands/mbo/
 if [ -d "${SCRIPT_DIR}/commands/mbo" ]; then
     for script in "${SCRIPT_DIR}"/commands/mbo/*.sh; do
@@ -37,19 +32,25 @@ Usage:
     ps_tool mbo <command> [options]
 
 Commands:
-    install <nom_shop> [version]    Installer le module ps_mbo dans un shop
-    use <environment> <nom_shop>     Configurer l'environnement du module ps_mbo
-    status <nom_shop>                Afficher la configuration actuelle de ps_mbo
-    version                           Afficher les versions disponibles de ps_mbo
-    help                             Afficher cette aide
+    install, -i <nom_shop> [version]    Installer le module ps_mbo dans un shop
+    uninstall <nom_shop> [options]      Désinstaller le module ps_mbo d'un shop
+    use <environment> <nom_shop>        Configurer l'environnement du module ps_mbo
+    status <nom_shop>                   Afficher la configuration actuelle de ps_mbo
+    version, -v                          Afficher les versions disponibles de ps_mbo
+    help, -h                            Afficher cette aide
 
 Exemples:
     ps_tool mbo install shop18
+    ps_tool mbo -i shop18
     ps_tool mbo install shop18 5.2.1
+    ps_tool mbo -i shop18 5.2.1
+    ps_tool mbo uninstall shop18
+    ps_tool mbo uninstall shop18 --files
     ps_tool mbo use PROD shop18
     ps_tool mbo use PREPROD shop18
     ps_tool mbo status shop18
     ps_tool mbo version
+    ps_tool mbo -v
 
 Pour plus d'informations sur une commande:
     ps_tool mbo <command> --help
@@ -67,11 +68,19 @@ cmd_mbo() {
     shift
 
     case "$subcommand" in
-        install)
-            if function_exists "cmd_shop_mbo_install"; then
-                cmd_shop_mbo_install "$@"
+        install|-i)
+            if function_exists "cmd_mbo_install"; then
+                cmd_mbo_install "$@"
             else
                 error "La commande 'install' n'est pas disponible"
+                exit 1
+            fi
+            ;;
+        uninstall)
+            if function_exists "cmd_mbo_uninstall"; then
+                cmd_mbo_uninstall "$@"
+            else
+                error "La commande 'uninstall' n'est pas disponible"
                 exit 1
             fi
             ;;
@@ -91,7 +100,7 @@ cmd_mbo() {
                 exit 1
             fi
             ;;
-        version)
+        version|-v)
             if function_exists "cmd_mbo_version"; then
                 cmd_mbo_version "$@"
             else

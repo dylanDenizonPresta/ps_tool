@@ -173,7 +173,7 @@ _update_env_file() {
     echo "$env_data" > "$env_file"
 }
 
-# Fonction pour reset le module et vider le cache
+# Fonction pour reset le module
 # Usage: _reset_mbo_module <shop_path>
 _reset_mbo_module() {
     local shop_path="$1"
@@ -193,31 +193,6 @@ _reset_mbo_module() {
         else
             error "ddev doit être démarré pour reset le module"
             return 1
-        fi
-    fi
-    
-    # Vider le cache Symfony
-    info "Vidage du cache Symfony..."
-    # Utiliser --no-warmup pour éviter les problèmes de cache et ignorer les warnings
-    # Rediriger stderr vers stdout pour capturer les warnings aussi
-    local cache_output
-    cache_output=$(ddev exec "php bin/console cache:clear --no-warmup 2>&1" 2>&1)
-    local cache_exit_code=$?
-    
-    # Le cache:clear peut retourner un code d'erreur même avec des warnings non-critiques
-    # On considère que c'est OK si le cache a été vidé (même avec des warnings)
-    # Les warnings comme "filemtime(): stat failed" ne sont pas critiques
-    if [ $cache_exit_code -eq 0 ]; then
-        success "Cache Symfony vidé avec succès"
-    else
-        # Vérifier si c'est juste un warning ou une vraie erreur
-        if echo "$cache_output" | grep -qiE "cleared|success|done" || echo "$cache_output" | grep -qiE "warning.*filemtime"; then
-            # C'est probablement juste un warning, on continue
-            success "Cache Symfony vidé (avec warnings non-critiques)"
-        else
-            # Afficher un warning mais continuer quand même (le cache peut être partiellement vidé)
-            warning "Le vidage du cache Symfony a généré des messages, mais on continue..."
-            echo "$cache_output" | grep -iE "error|fatal" | head -3 >&2 || true
         fi
     fi
     
@@ -282,8 +257,7 @@ Exemples:
 La commande va:
     1. Trouver le fichier .env dans modules/ps_mbo/
     2. Mettre à jour les variables d'environnement (MBO_CDC_URL, DISTRIBUTION_API_URL, ADDONS_API_URL, SENTRY_CREDENTIALS, SENTRY_ENVIRONMENT)
-    3. Vider le cache Symfony
-    4. Reset le module ps_mbo
+    3. Reset le module ps_mbo
 EOF
         if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
             return 0
@@ -387,7 +361,7 @@ EOF
     
     success "Fichier .env mis à jour avec succès"
     
-    # Reset le module et vider le cache
+    # Reset le module
     if ! _reset_mbo_module "$shop_path"; then
         warning "La configuration a été mise à jour mais le reset du module a échoué"
         warning "Vous pouvez reset le module manuellement avec:"

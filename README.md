@@ -55,11 +55,20 @@ Le script va :
 - `ps_tool shop start <nom_shop>` : Démarrer un shop PrestaShop
 - `ps_tool shop stop <nom_shop>` : Arrêter un shop PrestaShop
 - `ps_tool shop remove <nom_shop> [--files]` : Supprimer un shop PrestaShop
+- `ps_tool shop clean <nom_shop> [options]` : Nettoyer le cache et fichiers temporaires
 - `ps_tool shop version` : Afficher les versions PrestaShop disponibles
 
 #### Gestion du module ps_mbo
 - `ps_tool mbo install <nom_shop> [version]` : Installer le module ps_mbo dans un shop
+- `ps_tool mbo uninstall <nom_shop> [--files]` : Désinstaller le module ps_mbo d'un shop
 - `ps_tool mbo use <environment> <nom_shop>` : Configurer l'environnement du module ps_mbo
+- `ps_tool mbo status <nom_shop>` : Afficher la configuration actuelle de ps_mbo
+- `ps_tool mbo version` : Afficher les versions ps_mbo disponibles
+
+#### Gestion du module ps_accounts
+- `ps_tool account install <nom_shop> [version] [--env PROD|PREPROD]` : Installer le module ps_accounts dans un shop
+- `ps_tool account uninstall <nom_shop> [--files]` : Désinstaller le module ps_accounts d'un shop
+- `ps_tool account version` : Afficher les versions ps_accounts disponibles
 
 #### Autres commandes
 - `ps_tool version` : Affiche la version actuelle du CLI
@@ -86,17 +95,35 @@ ps_tool shop list
 ps_tool shop start shop18
 ps_tool shop stop shop18
 ps_tool shop remove shop18
+ps_tool shop clean shop18
 
 # Installer le module ps_mbo
 ps_tool mbo install shop18
 ps_tool mbo install shop18 5.2.1
+
+# Désinstaller le module ps_mbo
+ps_tool mbo uninstall shop18
+ps_tool mbo uninstall shop18 --files
 
 # Configurer l'environnement du module ps_mbo
 ps_tool mbo use PROD shop18
 ps_tool mbo use PREPROD shop18
 ps_tool mbo use LOCAL shop18
 
-# Voir les versions disponibles
+# Installer le module ps_accounts
+ps_tool account install shop18
+ps_tool account install shop18 8.0.8
+ps_tool account install shop18 --env PREPROD
+ps_tool account install shop18 8.0.8 --env PREPROD
+
+# Désinstaller le module ps_accounts
+ps_tool account uninstall shop18
+ps_tool account uninstall shop18 --files
+
+# Voir le statut et les versions
+ps_tool mbo status shop18
+ps_tool mbo version
+ps_tool account version
 ps_tool shop version
 ps_tool version
 ```
@@ -137,6 +164,7 @@ ps_tool/
 │   ├── commands/           # Routers des commandes principales
 │   │   ├── shop.sh         # Router pour les commandes shop
 │   │   ├── mbo.sh          # Router pour les commandes mbo
+│   │   ├── account.sh      # Router pour les commandes account
 │   │   └── version.sh      # Commande version
 │   ├── utils/              # Modules utilitaires
 │   │   ├── logging.sh      # Fonctions de logging
@@ -153,15 +181,23 @@ ps_tool/
 │   │   ├── start.sh        # Démarrer un shop
 │   │   ├── stop.sh         # Arrêter un shop
 │   │   ├── remove.sh       # Supprimer un shop
-│   │   ├── version.sh      # Versions PrestaShop disponibles
-│   │   └── mbo.sh          # Installation du module ps_mbo
+│   │   ├── clean.sh        # Nettoyer le cache et fichiers temporaires
+│   │   └── version.sh      # Versions PrestaShop disponibles
 │   ├── mbo/                 # Commandes mbo
-│   │   └── use.sh          # Configuration de l'environnement mbo
+│   │   ├── install.sh      # Installation du module ps_mbo
+│   │   ├── uninstall.sh    # Désinstallation du module ps_mbo
+│   │   ├── use.sh          # Configuration de l'environnement mbo
+│   │   ├── status.sh       # Statut de la configuration mbo
+│   │   └── version.sh      # Versions ps_mbo disponibles
+│   ├── account/             # Commandes account
+│   │   ├── install.sh      # Installation du module ps_accounts
+│   │   └── version.sh      # Versions ps_accounts disponibles
 │   ├── ddev.sh             # Installation de ddev
 │   └── tools.sh            # Définitions des outils
 ├── config/
 │   ├── prestashop.sh       # Configuration des versions PrestaShop
-│   └── ps_mbo.sh           # Configuration des versions ps_mbo
+│   ├── ps_mbo.sh           # Configuration des versions ps_mbo
+│   └── ps_accounts.sh      # Configuration des versions ps_accounts
 ├── install.sh              # Script d'installation
 ├── uninstall.sh            # Script de désinstallation
 └── README.md               # Documentation
