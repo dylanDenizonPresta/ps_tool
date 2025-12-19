@@ -12,7 +12,7 @@ get_prestashop_url() {
     case "$version" in
         # Versions 9.x
         "9.0.2")
-            echo "https://github.com/PrestaShop/PrestaShop/archive/refs/tags/9.0.2.zip"
+            echo "https://assets.prestashop3.com/dst/edition/corporate/9.0.2-2.1/prestashop_edition_basic_version_9.0.2-2.1.zip"
             ;;
         "9.0.1")
             echo "https://github.com/PrestaShop/PrestaShop/archive/refs/tags/9.0.1.zip"
