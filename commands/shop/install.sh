@@ -29,6 +29,7 @@ Arguments:
     nom_shop          Nom de la shop (utilisé pour le projet ddev)
     version           Version de PrestaShop à installer (optionnel)
                       Par défaut: $PRESTASHOP_DEFAULT_VERSION
+                      Non requis si --from-zip est utilisé (utilisera la version par défaut pour PHP)
 
 Options:
     --router-http-port <port>    Port HTTP du routeur ddev (défaut: auto)
@@ -42,6 +43,9 @@ Options:
     --timezone <timezone>        Fuseau horaire (défaut: Europe/Paris)
     --currency <code>            Code devise (défaut: EUR)
     --ssl                        Activer SSL/HTTPS (défaut: activé)
+    --from-zip <chemin>          Installer depuis un fichier zip local (au lieu de télécharger)
+                                  La version PrestaShop n'est pas requise mais peut être spécifiée
+                                  pour déterminer la version PHP appropriée
     -m, --manual                 Installation manuelle via l'interface web (pas d'installation CLI automatique)
     --help, -h                    Afficher cette aide
 
@@ -52,11 +56,13 @@ Exemples:
     ps_tool shop install shop18 9.0.2 --router-http-port 8080 --router-https-port 8443
     ps_tool shop install shop18 --admin-email admin@example.com --admin-password MyPass123
     ps_tool shop install shop18 --webserver-type apache-fpm
+    ps_tool shop install shop18 --from-zip /path/to/prestashop.zip
+    ps_tool shop install shop18 --from-zip /path/to/prestashop.zip 9.0.2
     ps_tool shop install shop18 -m
     ps_tool shop install shop18 --manual
 
 La commande va:
-    1. Télécharger PrestaShop depuis GitHub
+    1. Télécharger PrestaShop depuis GitHub (ou utiliser un fichier zip local si --from-zip est spécifié)
     2. Extraire les fichiers à la racine du répertoire courant
     3. Configurer ddev avec la version PHP appropriée et les ports spécifiés
     4. Installer PrestaShop automatiquement via CLI (sans interface web)
@@ -90,6 +96,7 @@ EOF
     local currency="EUR"
     local enable_ssl=true
     local manual_install=false
+    local zip_file_path=""
     
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -181,6 +188,14 @@ EOF
                 enable_ssl=true
                 shift
                 ;;
+            --from-zip)
+                if [ $# -lt 2 ]; then
+                    error "Option --from-zip nécessite un chemin vers un fichier zip"
+                    return 1
+                fi
+                zip_file_path="$2"
+                shift 2
+                ;;
             -m|--manual)
                 manual_install=true
                 shift
@@ -211,7 +226,17 @@ EOF
     fi
     
     info "Installation de la shop: $shop_name"
-    info "Version PrestaShop: $prestashop_version"
+    if [ -n "$zip_file_path" ]; then
+        info "Installation depuis un fichier zip local: $zip_file_path"
+        if [ "$prestashop_version" = "$PRESTASHOP_DEFAULT_VERSION" ]; then
+            info "Version PrestaShop: $prestashop_version (par défaut, utilisée pour déterminer la version PHP)"
+            info "Pour spécifier une version différente, ajoutez-la comme argument: ps_tool shop install $shop_name <version> --from-zip <chemin>"
+        else
+            info "Version PrestaShop: $prestashop_version (utilisée pour déterminer la version PHP)"
+        fi
+    else
+        info "Version PrestaShop: $prestashop_version"
+    fi
     
     # Vérifier que ddev est installé
     if ! command_exists ddev; then
@@ -309,33 +334,77 @@ EOF
         fi
     fi
     
-    # Obtenir l'URL de téléchargement de PrestaShop
-    local download_url=$(get_prestashop_url "$prestashop_version")
-    if [ -z "$download_url" ]; then
-        error "Version PrestaShop non trouvée: $prestashop_version"
-        return 1
-    fi
+    # Déterminer le fichier zip à utiliser
+    local zip_file=""
     
-    # Télécharger PrestaShop
-    info "Téléchargement de PrestaShop $prestashop_version..."
-    local zip_file="/tmp/prestashop_${prestashop_version}.zip"
-    
-    if command_exists curl; then
-        if ! curl -fsSL -o "$zip_file" "$download_url"; then
-            error "Échec du téléchargement de PrestaShop"
+    if [ -n "$zip_file_path" ]; then
+        # Utiliser le fichier zip fourni
+        # Convertir le chemin relatif en chemin absolu si nécessaire
+        if [ "${zip_file_path#/}" = "$zip_file_path" ]; then
+            # Chemin relatif, le convertir en absolu
+            local zip_dir=$(dirname "$zip_file_path")
+            local zip_name=$(basename "$zip_file_path")
+            if [ "$zip_dir" = "." ] || [ -z "$zip_dir" ]; then
+                # Fichier dans le répertoire courant
+                zip_file="$(pwd)/$zip_name"
+            else
+                # Fichier dans un sous-répertoire
+                if [ -d "$zip_dir" ]; then
+                    zip_file="$(cd "$zip_dir" && pwd)/$zip_name"
+                else
+                    # Si le répertoire n'existe pas, essayer avec le répertoire courant
+                    zip_file="$(pwd)/$zip_name"
+                fi
+            fi
+        else
+            # Chemin absolu
+            zip_file="$zip_file_path"
+        fi
+        
+        # Vérifier que le fichier existe
+        if [ ! -f "$zip_file" ]; then
+            error "Le fichier zip n'existe pas: $zip_file"
             return 1
         fi
-    elif command_exists wget; then
-        if ! wget -q -O "$zip_file" "$download_url"; then
-            error "Échec du téléchargement de PrestaShop"
-            return 1
+        
+        # Vérifier que c'est bien un fichier zip
+        if ! file "$zip_file" 2>/dev/null | grep -qi "zip"; then
+            warning "Le fichier ne semble pas être un fichier zip valide: $zip_file"
+            if ! confirm "Voulez-vous continuer quand même ?"; then
+                return 1
+            fi
         fi
+        
+        info "Utilisation du fichier zip local: $zip_file"
     else
-        error "curl ou wget est requis pour télécharger PrestaShop"
-        return 1
+        # Télécharger PrestaShop depuis GitHub
+        local download_url=$(get_prestashop_url "$prestashop_version")
+        if [ -z "$download_url" ]; then
+            error "Version PrestaShop non trouvée: $prestashop_version"
+            return 1
+        fi
+        
+        # Télécharger PrestaShop
+        info "Téléchargement de PrestaShop $prestashop_version..."
+        zip_file="/tmp/prestashop_${prestashop_version}.zip"
+        
+        if command_exists curl; then
+            if ! curl -fsSL -o "$zip_file" "$download_url"; then
+                error "Échec du téléchargement de PrestaShop"
+                return 1
+            fi
+        elif command_exists wget; then
+            if ! wget -q -O "$zip_file" "$download_url"; then
+                error "Échec du téléchargement de PrestaShop"
+                return 1
+            fi
+        else
+            error "curl ou wget est requis pour télécharger PrestaShop"
+            return 1
+        fi
+        
+        success "PrestaShop téléchargé avec succès"
     fi
-    
-    success "PrestaShop téléchargé avec succès"
     
     # Extraire PrestaShop à la racine du répertoire courant
     info "Extraction de PrestaShop..."
@@ -437,8 +506,10 @@ EOF
         return 1
     fi
     
-    # Nettoyer le fichier ZIP
-    rm -f "$zip_file"
+    # Nettoyer le fichier ZIP seulement s'il a été téléchargé (pas si c'est un fichier local)
+    if [ -z "$zip_file_path" ]; then
+        rm -f "$zip_file"
+    fi
     success "PrestaShop extrait avec succès à la racine du répertoire"
     
     # Déterminer le docroot (PrestaShop 8+ utilise 'public', versions antérieures utilisent la racine)

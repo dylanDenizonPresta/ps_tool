@@ -44,6 +44,9 @@ Exemples:
     ps_tool mbo -i shop18
     ps_tool mbo install shop18 5.2.1
     ps_tool mbo -i shop18 5.2.1
+    ps_tool mbo install shop18 --from-git
+    ps_tool mbo install shop18 --from-git main
+    ps_tool mbo install shop18 --from-git v5.2.1
     ps_tool mbo uninstall shop18
     ps_tool mbo uninstall shop18 --files
     ps_tool mbo use PROD shop18
