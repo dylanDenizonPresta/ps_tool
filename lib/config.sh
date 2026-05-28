@@ -9,7 +9,7 @@ PS_TOOL_VERSION="1.0.0"
 PS_TOOL_INSTALL_DIR="${PS_TOOL_INSTALL_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 # URL du repository GitHub
-PS_TOOL_GIT_REPO="${PS_TOOL_GIT_REPO:-https://github.com/USERNAME/ps_tool.git}"
+PS_TOOL_GIT_REPO="${PS_TOOL_GIT_REPO:-https://github.com/dylanDenizonPresta/ps_tool.git}"
 
 # Répertoire de configuration utilisateur
 PS_TOOL_CONFIG_DIR="${HOME}/.ps_tool"

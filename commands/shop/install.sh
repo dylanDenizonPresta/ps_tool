@@ -43,6 +43,7 @@ Options:
     --timezone <timezone>        Fuseau horaire (défaut: Europe/Paris)
     --currency <code>            Code devise (défaut: EUR)
     --ssl                        Activer SSL/HTTPS (défaut: activé)
+    --no-fixtures                Ne pas installer les produits/données de démonstration
     --from-zip <chemin>          Installer depuis un fichier zip local (au lieu de télécharger)
                                   La version PrestaShop n'est pas requise mais peut être spécifiée
                                   pour déterminer la version PHP appropriée
@@ -95,6 +96,7 @@ EOF
     local timezone="Europe/Paris"
     local currency="EUR"
     local enable_ssl=true
+    local fixtures=true
     local manual_install=false
     local zip_file_path=""
     
@@ -188,6 +190,10 @@ EOF
                 enable_ssl=true
                 shift
                 ;;
+            --no-fixtures)
+                fixtures=false
+                shift
+                ;;
             --from-zip)
                 if [ $# -lt 2 ]; then
                     error "Option --from-zip nécessite un chemin vers un fichier zip"
@@ -210,7 +216,7 @@ EOF
                 ;;
             *)
                 # Si ce n'est pas une option, c'est probablement la version PrestaShop
-                if [ "$prestashop_version" = "$PRESTASHOP_DEFAULT_VERSION" ] && [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                if [ "$prestashop_version" = "$PRESTASHOP_DEFAULT_VERSION" ] && [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
                     prestashop_version="$1"
                 else
                     warning "Argument ignoré: $1"
@@ -511,7 +517,8 @@ EOF
         rm -f "$zip_file"
     fi
     success "PrestaShop extrait avec succès à la racine du répertoire"
-    
+
+
     # Déterminer le docroot (PrestaShop 8+ utilise 'public', versions antérieures utilisent la racine)
     local docroot="."
     if [ -d "public" ]; then
@@ -639,7 +646,11 @@ EOF
     # Installer PrestaShop via CLI si ddev est démarré et que l'installation manuelle n'est pas demandée
     if [ "$manual_install" = false ]; then
         if [ "$ddev_started" = true ]; then
-            _install_prestashop_cli "$current_dir" "$shop_name" "$admin_email" "$admin_password" "$shop_name_option" "$country" "$language" "$timezone" "$currency" "$router_http_port" "$router_https_port" "$enable_ssl"
+            if ! _install_prestashop_cli "$current_dir" "$shop_name" "$admin_email" "$admin_password" "$shop_name_option" "$country" "$language" "$timezone" "$currency" "$router_http_port" "$router_https_port" "$enable_ssl" "$fixtures"; then
+                warning "L'installation CLI a échoué — PrestaShop n'est pas encore installé"
+                info "Vous pouvez l'installer manuellement via: ddev launch"
+                return 1
+            fi
         else
             warning "Installation CLI de PrestaShop ignorée (ddev non démarré)"
             info "Après avoir démarré ddev manuellement, vous pouvez installer PrestaShop via l'interface web avec: ddev launch"
@@ -653,14 +664,14 @@ EOF
             info "Puis accédez à l'interface d'installation avec: ddev launch"
         fi
     fi
-    
+
     success "Installation terminée !"
     
     return 0
 }
 
 # Fonction pour installer PrestaShop via CLI
-# Usage: _install_prestashop_cli <chemin> <shop_name> <admin_email> <admin_password> <shop_name_option> <country> <language> <timezone> <currency> <http_port> <https_port> <enable_ssl>
+# Usage: _install_prestashop_cli <chemin> <shop_name> <admin_email> <admin_password> <shop_name_option> <country> <language> <timezone> <currency> <http_port> <https_port> <enable_ssl> [fixtures]
 _install_prestashop_cli() {
     local shop_path="$1"
     local shop_name="$2"
@@ -674,6 +685,7 @@ _install_prestashop_cli() {
     local http_port="${10}"
     local https_port="${11}"
     local enable_ssl="${12}"
+    local fixtures="${13:-true}"
     
     # Vérifier que ddev est démarré
     if ! command_exists ddev; then
@@ -753,19 +765,32 @@ _install_prestashop_cli() {
     if [ "$enable_ssl" = true ]; then
         base_args+=("--ssl=1")
     fi
-    
+
+    # Ajouter --fixtures=0 si désactivé (défaut : 1)
+    if [ "$fixtures" = false ]; then
+        base_args+=("--fixtures=0")
+    else
+        base_args+=("--fixtures=1")
+    fi
+
     # Ajouter --shop_name si spécifié
     if [ -n "$shop_name_option" ]; then
         base_args+=("--shop_name=$shop_name_option")
     fi
     
     # Exécuter la commande
+    info "Commande CLI : ddev exec php $install_script ${base_args[*]}"
     install_output=$(cd "$shop_path" && ddev exec php "$install_script" "${base_args[@]}" 2>&1)
     local install_exit_code=$?
-    
+
+    # Toujours afficher la sortie pour détecter d'éventuels avertissements (ex: --fixtures ignoré)
+    if [ -n "$install_output" ]; then
+        echo "$install_output"
+    fi
+
     if [ $install_exit_code -eq 0 ]; then
         success "PrestaShop installé avec succès via CLI"
-        
+
         # Supprimer le dossier install après une installation réussie (sécurité)
         info "Suppression du dossier d'installation..."
         local install_dir=""
@@ -774,7 +799,7 @@ _install_prestashop_cli() {
         elif [ -d "$shop_path/install-dev" ]; then
             install_dir="$shop_path/install-dev"
         fi
-        
+
         if [ -n "$install_dir" ] && [ -d "$install_dir" ]; then
             if rm -rf "$install_dir" 2>/dev/null; then
                 success "Dossier d'installation supprimé avec succès"
@@ -783,12 +808,11 @@ _install_prestashop_cli() {
                 info "Veuillez le supprimer manuellement pour des raisons de sécurité"
             fi
         fi
-        
+
         info "Vous pouvez accéder au shop avec: ddev launch"
         info "Back-office: https://${domain}/admin (email: $admin_email)"
     else
-        warning "L'installation CLI de PrestaShop a échoué"
-        echo "$install_output" >&2
+        warning "L'installation CLI de PrestaShop a échoué (code: $install_exit_code)"
         info "Vous pouvez installer PrestaShop manuellement via l'interface web"
         info "Accédez à: ddev launch"
         return 1

@@ -192,128 +192,24 @@ get_shop_status() {
         return 0
     fi
     
-    # Vérifier l'état via ddev describe
-    # Si ddev describe retourne des informations avec "OK" ou "running", le projet est démarré
-    local status_output
-    status_output=$(cd "$shop_path" && timeout 3 ddev describe 2>/dev/null)
-    local describe_exit_code=$?
-    
-    if [ $describe_exit_code -eq 0 ] && [ -n "$status_output" ]; then
-        # Vérifier si la sortie contient des indicateurs que le projet est démarré
-        # "OK" dans la colonne STAT indique que le service est démarré
-        # "running (ok)" ou "running" dans ddev list indique aussi un projet démarré
-        if echo "$status_output" | grep -qiE "(OK|running|started|active)" && \
-           ! echo "$status_output" | grep -qiE "(stopped|not found|unhealthy.*stopped)"; then
-            echo "Démarré"
-        else
-            echo "Arrêté"
-        fi
-    else
-        # Si ddev describe échoue ou ne retourne rien, vérifier avec ddev list
-        local project_name=$(grep -E "^name:" "$shop_path/.ddev/config.yaml" 2>/dev/null | sed 's/^name:[[:space:]]*//' | sed 's/[[:space:]]*$//' | tr -d '"' | tr -d "'" || echo "")
-        if [ -n "$project_name" ] && command_exists ddev; then
-            local list_output
-            list_output=$(ddev list 2>/dev/null | grep -E "^[[:space:]]*${project_name}[[:space:]]" || echo "")
-            if echo "$list_output" | grep -qiE "(running|ok)"; then
-                echo "Démarré"
-            else
-                echo "Arrêté"
-            fi
-        else
-            echo "Arrêté"
-        fi
-    fi
-}
+    # Lire le nom du projet depuis la config ddev
+    local project_name
+    project_name=$(grep -E "^name:" "$shop_path/.ddev/config.yaml" 2>/dev/null | sed 's/^name:[[:space:]]*//' | sed 's/[[:space:]]*$//' | tr -d '"' | tr -d "'" || echo "")
 
-# Fonction pour obtenir les ports utilisés par un shop
-# Usage: get_shop_ports <chemin_shop>
-# Retourne les ports au format "HTTP:80, HTTPS:443" ou "N/A"
-get_shop_ports() {
-    local shop_path="$1"
-    
-    # Vérifier que ddev est installé
-    if ! command_exists ddev; then
-        echo "N/A"
+    if [ -z "$project_name" ]; then
+        echo "Arrêté"
         return 0
     fi
-    
-    # Vérifier que le répertoire existe et contient une config ddev
-    if [ ! -d "$shop_path" ] || [ ! -f "$shop_path/.ddev/config.yaml" ]; then
-        echo "N/A"
-        return 0
-    fi
-    
-    # Essayer d'abord avec ddev describe --json (plus fiable)
-    local json_output
-    json_output=$(cd "$shop_path" && timeout 3 ddev describe --json 2>/dev/null)
-    local json_exit_code=$?
-    
-    local http_port=""
-    local https_port=""
-    
-    if [ $json_exit_code -eq 0 ] && [ -n "$json_output" ]; then
-        # Extraire les ports depuis le JSON
-        http_port=$(echo "$json_output" | grep -oE '"http_port":\s*([0-9]+)' | head -1 | grep -oE '[0-9]+' || echo "")
-        https_port=$(echo "$json_output" | grep -oE '"https_port":\s*([0-9]+)' | head -1 | grep -oE '[0-9]+' || echo "")
-    fi
-    
-    # Si pas trouvé dans le JSON, essayer ddev describe en texte
-    if [ -z "$http_port" ] && [ -z "$https_port" ]; then
-        local describe_output
-        describe_output=$(cd "$shop_path" && timeout 3 ddev describe 2>/dev/null)
-        local describe_exit_code=$?
-        
-        if [ $describe_exit_code -eq 0 ] && [ -n "$describe_output" ]; then
-            # Chercher les URLs avec ports dans la section "Project URLs" ou dans les URLs du service web
-            # Format: https://shop18.ddev.site:33001 ou http://shop18.ddev.site:33000
-            https_port=$(echo "$describe_output" | grep -oE "https://[^[:space:],]+:([0-9]+)" | head -1 | sed 's/.*://' || echo "")
-            http_port=$(echo "$describe_output" | grep -oE "http://[^[:space:],]+:([0-9]+)" | head -1 | sed 's/.*://' || echo "")
-            
-            # Si toujours pas trouvé, chercher dans la ligne du projet (format: https://shop18.ddev.site:33001)
-            if [ -z "$https_port" ] && [ -z "$http_port" ]; then
-                https_port=$(echo "$describe_output" | grep -oE "https://[^[:space:]]+:([0-9]+)" | head -1 | sed 's/.*://' || echo "")
-                http_port=$(echo "$describe_output" | grep -oE "http://[^[:space:]]+:([0-9]+)" | head -1 | sed 's/.*://' || echo "")
-            fi
-        fi
-    fi
-    
-    # Si toujours pas trouvé, essayer avec ddev list (fonctionne même si projet arrêté)
-    if [ -z "$http_port" ] && [ -z "$https_port" ]; then
-        local project_name=$(grep -E "^name:" "$shop_path/.ddev/config.yaml" 2>/dev/null | sed 's/^name:[[:space:]]*//' | sed 's/[[:space:]]*$//' | tr -d '"' | tr -d "'" || echo "")
-        if [ -n "$project_name" ] && command_exists ddev; then
-            # Lire ddev list et chercher le projet
-            local ddev_list_output
-            ddev_list_output=$(ddev list 2>/dev/null)
-            if [ $? -eq 0 ] && [ -n "$ddev_list_output" ]; then
-                # Chercher la ligne du projet dans ddev list
-                local list_line=$(echo "$ddev_list_output" | grep -E "^[│ ]*${project_name}[│ ]" || echo "")
-                if [ -n "$list_line" ]; then
-                    # Extraire les ports depuis la ligne (format: https://shop18.ddev.site:33001)
-                    https_port=$(echo "$list_line" | grep -oE "https://[^[:space:]]+:([0-9]+)" | head -1 | sed 's/.*://' || echo "")
-                    http_port=$(echo "$list_line" | grep -oE "http://[^[:space:]]+:([0-9]+)" | head -1 | sed 's/.*://' || echo "")
-                fi
-            fi
-        fi
-    fi
-    
-    # Si toujours pas trouvé, lire depuis config.yaml (peut être commenté ou utiliser les valeurs par défaut)
-    if [ -z "$http_port" ] && [ -z "$https_port" ]; then
-        if [ -f "$shop_path/.ddev/config.yaml" ]; then
-            # Chercher les ports non commentés
-            http_port=$(grep -E "^router_http_port:" "$shop_path/.ddev/config.yaml" 2>/dev/null | grep -v "^#" | sed 's/.*:[[:space:]]*//' | tr -d '"' | tr -d "'" || echo "")
-            https_port=$(grep -E "^router_https_port:" "$shop_path/.ddev/config.yaml" 2>/dev/null | grep -v "^#" | sed 's/.*:[[:space:]]*//' | tr -d '"' | tr -d "'" || echo "")
-        fi
-    fi
-    
-    # Formater la sortie
-    if [ -n "$http_port" ] && [ -n "$https_port" ]; then
-        echo "HTTP:$http_port, HTTPS:$https_port"
-    elif [ -n "$http_port" ]; then
-        echo "HTTP:$http_port"
-    elif [ -n "$https_port" ]; then
-        echo "HTTPS:$https_port"
+
+    # Vérifier l'état via ddev list (fonctionne même si timeout n'est pas dispo sur macOS)
+    # Le format de sortie est : │ shop9  │ running │ ...
+    local list_output
+    list_output=$(ddev list 2>/dev/null | grep -E "[[:space:]|]${project_name}[[:space:]|]" || echo "")
+
+    if echo "$list_output" | grep -qiE "(running|ok)"; then
+        echo "Démarré"
     else
-        echo "N/A"
+        echo "Arrêté"
     fi
 }
 
@@ -332,19 +228,25 @@ read_shops_registry() {
     
     # Réinitialiser le compteur
     _SHOP_COUNT=0
-    
+
     # Vérifier si le fichier existe
     if [ ! -f "$PS_TOOL_SHOPS_REGISTRY" ]; then
         return 1
     fi
-    
+
+    # Un seul appel ddev list pour tous les shops
+    local ddev_list_output=""
+    if command_exists ddev; then
+        ddev_list_output=$(ddev list 2>/dev/null)
+    fi
+
     # Collecter les données dans des tableaux
     local shop_names=()
     local shop_paths=()
     local shop_versions=()
     local shop_statuses=()
-    local shop_ports=()
-    
+    local shop_urls=()
+
     # Lire le registre et collecter les données
     # Format: shop_name|shop_path|prestashop_version|http_port|https_port
     while IFS='|' read -r shop_name shop_path prestashop_version http_port https_port; do
@@ -352,103 +254,171 @@ read_shops_registry() {
         if [ -z "$shop_name" ]; then
             continue
         fi
-        
+
         # Vérifier que le répertoire existe toujours
         if [ ! -d "$shop_path" ]; then
             continue
         fi
-        
-        # Obtenir l'état du shop
-        local status=$(get_shop_status "$shop_path")
-        
-        # Utiliser les ports du registre si disponibles, sinon essayer de les obtenir depuis ddev
-        local ports="N/A"
-        if [ -n "$http_port" ] && [ -n "$https_port" ] && [[ "$http_port" =~ ^[0-9]+$ ]] && [[ "$https_port" =~ ^[0-9]+$ ]]; then
-            ports="HTTP:$http_port, HTTPS:$https_port"
-        else
-            # Fallback: obtenir depuis ddev describe
-            ports=$(get_shop_ports "$shop_path")
+
+        # Déterminer le nom ddev depuis config.yaml
+        local project_name
+        project_name=$(grep -E "^name:" "$shop_path/.ddev/config.yaml" 2>/dev/null \
+            | sed 's/^name:[[:space:]]*//' | sed 's/[\"'\'']//g' | tr -d '[:space:]')
+
+        # Déduire l'état depuis le résultat ddev list déjà chargé
+        local status="Arrêté"
+        if [ -n "$project_name" ] && [ -n "$ddev_list_output" ]; then
+            local line
+            # ddev list utilise │ (Unicode) comme séparateur, on cherche le nom entouré d'espaces
+            line=$(echo "$ddev_list_output" | grep " ${project_name} ")
+            if echo "$line" | grep -qiE "(running|ok)"; then
+                status="Démarré"
+            fi
         fi
-        
+
+        # Construire l'URL depuis les ports du registre
+        local url="N/A"
+        if [ -n "$https_port" ] && [[ "$https_port" =~ ^[0-9]+$ ]]; then
+            if [ "$https_port" = "443" ]; then
+                url="https://${shop_name}.ddev.site"
+            else
+                url="https://${shop_name}.ddev.site:${https_port}"
+            fi
+        elif [ -n "$http_port" ] && [[ "$http_port" =~ ^[0-9]+$ ]]; then
+            if [ "$http_port" = "80" ]; then
+                url="http://${shop_name}.ddev.site"
+            else
+                url="http://${shop_name}.ddev.site:${http_port}"
+            fi
+        fi
+
         shop_names+=("$shop_name")
         shop_paths+=("$shop_path")
         shop_versions+=("${prestashop_version:-N/A}")
         shop_statuses+=("$status")
-        shop_ports+=("$ports")
+        shop_urls+=("$url")
         _SHOP_COUNT=$((_SHOP_COUNT + 1))
     done < "$PS_TOOL_SHOPS_REGISTRY"
-    
+
     # Si aucun shop, ne rien afficher
-    if [ $_SHOP_COUNT -eq 0 ]; then
+    if [ "$_SHOP_COUNT" -eq 0 ]; then
         return 0
     fi
-    
-    # Déterminer les largeurs de colonnes
-    local name_width=20
-    local version_width=15
-    local status_width=10
-    local ports_width=20
-    local path_width=50
-    
-    # Calculer les largeurs nécessaires
+
+    # ─── Calcul des largeurs de colonnes (sur les valeurs visuelles) ──────────
+
+    local name_width=12    # "Nom du shop"
+    local version_width=11 # "Version PS"
+    local status_width=9   # "● Démarré" = 9 visual chars + 2 padding
+    local url_width=5      # "URL"
+    local path_width=7     # "Chemin"
+
     for i in "${!shop_names[@]}"; do
-        local name_len=${#shop_names[$i]}
-        local version_len=${#shop_versions[$i]}
-        local status_len=${#shop_statuses[$i]}
-        local ports_len=${#shop_ports[$i]}
-        local path_len=${#shop_paths[$i]}
-        
-        if [ $name_len -gt $name_width ]; then
-            name_width=$name_len
-        fi
-        if [ $version_len -gt $version_width ]; then
-            version_width=$version_len
-        fi
-        if [ $status_len -gt $status_width ]; then
-            status_width=$status_len
-        fi
-        if [ $ports_len -gt $ports_width ]; then
-            ports_width=$ports_len
-        fi
-        if [ $path_len -gt $path_width ]; then
-            path_width=$path_len
-        fi
+        local nw=${#shop_names[$i]}
+        local vw=${#shop_versions[$i]}
+        local uw=${#shop_urls[$i]}
+        local pw=${#shop_paths[$i]}
+
+        [ $nw -gt $name_width ]    && name_width=$nw
+        [ $vw -gt $version_width ] && version_width=$vw
+        [ $uw -gt $url_width ]     && url_width=$uw
+        [ $pw -gt $path_width ]    && path_width=$pw
     done
-    
-    # Ajouter un peu de marge
+
+    # Marges internes (1 espace de chaque côté)
     name_width=$((name_width + 2))
     version_width=$((version_width + 2))
     status_width=$((status_width + 2))
-    ports_width=$((ports_width + 2))
+    url_width=$((url_width + 2))
     path_width=$((path_width + 2))
-    
-    # Limiter la largeur du chemin si trop long
-    if [ $path_width -gt 60 ]; then
-        path_width=60
-    fi
-    
-    # Afficher l'en-tête du tableau (avec état et ports)
-    printf "┌%-*s┬%-*s┬%-*s┬%-*s┬%-*s┐\n" $name_width "" $version_width "" $status_width "" $ports_width "" $path_width ""
-    printf "│%-*s│%-*s│%-*s│%-*s│%-*s│\n" $name_width " Nom du shop" $version_width " Version PS" $status_width " État" $ports_width " Ports" $path_width " Chemin"
-    printf "├%-*s┼%-*s┼%-*s┼%-*s┼%-*s┤\n" $name_width "" $version_width "" $status_width "" $ports_width "" $path_width ""
-    
-    # Afficher les lignes de données
+
+    # Limiter le chemin
+    [ $path_width -gt 55 ] && path_width=55
+
+    # ─── Helper : ligne horizontale de n caractères ─ ─────────────────────────
+    _hline() {
+        local n="$1"
+        local i
+        for ((i = 0; i < n; i++)); do printf '─'; done
+    }
+
+    # ─── Helper : cellule statut colorée avec padding correct ─────────────────
+    # "● Démarré" = 10 bytes (● 3 + espace 1 + Démarré 9 bytes), 9 visual chars
+    # "● Arrêté"  = 9 bytes  (● 3 + espace 1 + Arrêté  8 bytes), 8 visual chars
+    _status_cell() {
+        local text="$1"
+        local cell_w="$2"
+        local dot="●"
+        local label visual_w color
+        if [ "$text" = "Démarré" ]; then
+            color="$GREEN"
+            label="$dot Démarré"
+            visual_w=9  # ● + espace + 7 chars visuels
+        else
+            color="$RED"
+            label="$dot Arrêté"
+            visual_w=8  # ● + espace + 6 chars visuels
+        fi
+        local pad=$((cell_w - visual_w - 1))  # -1 pour l'espace initial
+        printf " %b%s%b%*s" "$color" "$label" "$NC" "$pad" ""
+    }
+
+    # ─── Affichage du tableau ─────────────────────────────────────────────────
+
+    # Ligne du haut
+    printf '┌'; _hline $name_width
+    printf '┬'; _hline $version_width
+    printf '┬'; _hline $status_width
+    printf '┬'; _hline $url_width
+    printf '┬'; _hline $path_width
+    printf '┐\n'
+
+    # En-tête
+    # Note: "État" contient É (2 bytes UTF-8 / 1 char visuel) → +1 pour compenser le padding printf
+    printf "│ %-*s│ %-*s│ %-*s│ %-*s│ %-*s│\n" \
+        $((name_width - 1))    "Nom du shop" \
+        $((version_width - 1)) "Version PS" \
+        $((status_width))      "État" \
+        $((url_width - 1))     "URL" \
+        $((path_width - 1))    "Chemin"
+
+    # Séparateur
+    printf '├'; _hline $name_width
+    printf '┼'; _hline $version_width
+    printf '┼'; _hline $status_width
+    printf '┼'; _hline $url_width
+    printf '┼'; _hline $path_width
+    printf '┤\n'
+
+    # Lignes de données
     for i in "${!shop_names[@]}"; do
         local name="${shop_names[$i]}"
         local version="${shop_versions[$i]}"
         local status="${shop_statuses[$i]}"
-        local ports="${shop_ports[$i]}"
+        local url="${shop_urls[$i]}"
         local path="${shop_paths[$i]}"
-        
+
         # Tronquer le chemin si trop long
-        if [ ${#path} -gt $((path_width - 2)) ]; then
-            path="...${path: -$((path_width - 5))}"
+        local max_path=$((path_width - 2))
+        if [ ${#path} -gt $max_path ]; then
+            path="...${path: -$((max_path - 3))}"
         fi
-        
-        printf "│%-*s│%-*s│%-*s│%-*s│%-*s│\n" $name_width " $name" $version_width " $version" $status_width " $status" $ports_width " $ports" $path_width " $path"
+
+        printf "│ %-*s│ %-*s│" \
+            $((name_width - 1))    "$name" \
+            $((version_width - 1)) "$version"
+        _status_cell "$status" "$status_width"
+        printf "│ %-*s│ %-*s│\n" \
+            $((url_width - 1))  "$url" \
+            $((path_width - 1)) "$path"
     done
-    
-    # Afficher le pied du tableau
-    printf "└%-*s┴%-*s┴%-*s┴%-*s┴%-*s┘\n" $name_width "" $version_width "" $status_width "" $ports_width "" $path_width ""
+
+    # Ligne du bas
+    printf '└'; _hline $name_width
+    printf '┴'; _hline $version_width
+    printf '┴'; _hline $status_width
+    printf '┴'; _hline $url_width
+    printf '┴'; _hline $path_width
+    printf '┘\n'
 }
 

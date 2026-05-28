@@ -35,10 +35,14 @@ Usage:
 Commands:
     install, -i <nom_shop> [version]    Installer une shop PrestaShop
     list                                 Lister tous les shops créés
-    start <nom_shop>                     Démarrer un shop PrestaShop
-    stop <nom_shop>                      Arrêter un shop PrestaShop
+    start <nom_shop> [--all]             Démarrer un ou tous les shops
+    stop <nom_shop> [--all]              Arrêter un ou tous les shops
+    open <nom_shop> [--admin]            Ouvrir le shop dans le navigateur
+    log <nom_shop> [--follow]            Afficher les logs ddev du shop
+    reinstall <nom_shop> [version]       Réinstaller un shop existant (conserve les ports)
     remove <nom_shop> [options]          Supprimer un shop PrestaShop
     clean <nom_shop> [options]           Nettoyer le cache et fichiers temporaires
+    prune                                Supprimer les entrées orphelines du registre
     version, -v                          Afficher les versions PrestaShop disponibles
     help, -h                             Afficher cette aide
 
@@ -49,7 +53,15 @@ Exemples:
     ps_tool shop -i shop18 9.0.2
     ps_tool shop list
     ps_tool shop start shop18
+    ps_tool shop start --all
     ps_tool shop stop shop18
+    ps_tool shop stop --all
+    ps_tool shop open shop18
+    ps_tool shop open shop18 --admin
+    ps_tool shop log shop18
+    ps_tool shop log shop18 --follow
+    ps_tool shop reinstall shop18
+    ps_tool shop reinstall shop18 9.0.2
     ps_tool shop remove shop18
     ps_tool shop remove shop18 --files
     ps_tool shop clean shop18
@@ -100,6 +112,38 @@ cmd_shop() {
                 cmd_shop_stop "$@"
             else
                 error "La commande 'stop' n'est pas disponible"
+                exit 1
+            fi
+            ;;
+        prune)
+            if function_exists "cmd_shop_prune"; then
+                cmd_shop_prune "$@"
+            else
+                error "La commande 'prune' n'est pas disponible"
+                exit 1
+            fi
+            ;;
+        open)
+            if function_exists "cmd_shop_open"; then
+                cmd_shop_open "$@"
+            else
+                error "La commande 'open' n'est pas disponible"
+                exit 1
+            fi
+            ;;
+        log)
+            if function_exists "cmd_shop_log"; then
+                cmd_shop_log "$@"
+            else
+                error "La commande 'log' n'est pas disponible"
+                exit 1
+            fi
+            ;;
+        reinstall)
+            if function_exists "cmd_shop_reinstall"; then
+                cmd_shop_reinstall "$@"
+            else
+                error "La commande 'reinstall' n'est pas disponible"
                 exit 1
             fi
             ;;

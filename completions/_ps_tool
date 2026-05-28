@@ -1,0 +1,118 @@
+#compdef ps_tool
+
+# Complétion zsh pour ps_tool
+# Installé automatiquement par install.sh
+
+_ps_tool_shop_names() {
+    local registry="${PS_TOOL_SHOPS_REGISTRY:-$HOME/.ps_tool/shops.txt}"
+    [[ ! -f "$registry" ]] && return
+    local -a names
+    names=(${(f)"$(cut -d'|' -f1 "$registry" 2>/dev/null)"})
+    _describe 'shops' names
+}
+
+_ps_tool_shop() {
+    local -a cmds
+    cmds=(
+        'install:Installer une shop PrestaShop'
+        'list:Lister tous les shops'
+        'start:Démarrer un shop (--all pour tous)'
+        'stop:Arrêter un shop (--all pour tous)'
+        'open:Ouvrir le shop dans le navigateur'
+        'log:Afficher les logs ddev'
+        'reinstall:Réinstaller un shop existant'
+        'remove:Supprimer un shop'
+        'clean:Nettoyer le cache PrestaShop'
+        'prune:Supprimer les entrées orphelines du registre'
+        'version:Versions PrestaShop disponibles'
+        'help:Afficher l aide'
+    )
+
+    if (( CURRENT == 3 )); then
+        _describe 'shop commands' cmds
+        return
+    fi
+
+    case "$words[3]" in
+        start|stop)
+            if (( CURRENT == 4 )); then
+                _ps_tool_shop_names
+                compadd -- --all
+            fi
+            ;;
+        open)
+            if (( CURRENT == 4 )); then
+                _ps_tool_shop_names
+            else
+                compadd -- --admin
+            fi
+            ;;
+        log)
+            if (( CURRENT == 4 )); then
+                _ps_tool_shop_names
+            else
+                compadd -- --follow -f --web --db
+            fi
+            ;;
+        reinstall)
+            if (( CURRENT == 4 )); then
+                _ps_tool_shop_names
+            fi
+            ;;
+        remove|clean)
+            if (( CURRENT == 4 )); then
+                _ps_tool_shop_names
+            fi
+            ;;
+        prune)
+            compadd -- --dry-run
+            ;;
+    esac
+}
+
+_ps_tool_mbo() {
+    local -a cmds
+    cmds=(
+        'install:Installer ps_mbo'
+        'uninstall:Désinstaller ps_mbo'
+        'use:Configurer l environnement MBO'
+        'status:Afficher la configuration MBO'
+        'version:Versions ps_mbo disponibles'
+    )
+    (( CURRENT == 3 )) && _describe 'mbo commands' cmds
+}
+
+_ps_tool_account() {
+    local -a cmds
+    cmds=(
+        'install:Installer ps_accounts'
+        'uninstall:Désinstaller ps_accounts'
+        'reset:Réinitialiser la configuration'
+        'version:Versions ps_accounts disponibles'
+    )
+    (( CURRENT == 3 )) && _describe 'account commands' cmds
+}
+
+_ps_tool() {
+    local -a main_cmds
+    main_cmds=(
+        'shop:Gestion des shops PrestaShop'
+        'mbo:Gestion du module ps_mbo'
+        'account:Gestion du module ps_accounts'
+        'version:Afficher la version de ps_tool'
+        'help:Afficher l aide'
+    )
+
+    if (( CURRENT == 2 )); then
+        _describe 'ps_tool commands' main_cmds
+        return
+    fi
+
+    case "$words[2]" in
+        shop)    _ps_tool_shop ;;
+        mbo)     _ps_tool_mbo ;;
+        account) _ps_tool_account ;;
+    esac
+}
+
+_ps_tool "$@"

@@ -42,9 +42,15 @@ info "Installation depuis: $SCRIPT_DIR"
 info "Création du répertoire d'installation: $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
 
-# Copier les fichiers (sans le dossier .git)
+# Copier les fichiers (sans .git ni node_modules)
 info "Copie des fichiers..."
-cp -R "$SCRIPT_DIR"/* "$INSTALL_DIR/" 2>/dev/null || true
+if command -v rsync &>/dev/null; then
+    rsync -a --exclude='.git' --exclude='node_modules' "$SCRIPT_DIR/" "$INSTALL_DIR/"
+else
+    cp -R "$SCRIPT_DIR"/* "$INSTALL_DIR/" 2>/dev/null || true
+    # Supprimer node_modules s'il a été copié
+    rm -rf "$INSTALL_DIR/web/node_modules" 2>/dev/null || true
+fi
 
 # Rendre le script principal exécutable
 chmod +x "$INSTALL_DIR/ps_tool"
@@ -79,10 +85,34 @@ fi
 # Exporter pour la session actuelle
 export PS_TOOL_INSTALL_DIR="$INSTALL_DIR"
 
+# ─── Complétion zsh ──────────────────────────────────────────────────────────
+COMPLETION_SRC="$INSTALL_DIR/completions/_ps_tool"
+if [ -f "$COMPLETION_SRC" ]; then
+    info "Configuration de la complétion zsh..."
+
+    # Créer le dossier de complétion utilisateur s'il n'existe pas
+    COMPLETION_DIR="${HOME}/.zsh/completions"
+    mkdir -p "$COMPLETION_DIR"
+    cp "$COMPLETION_SRC" "$COMPLETION_DIR/_ps_tool"
+
+    # Ajouter fpath + compinit à ~/.zshrc si pas déjà présent
+    if ! grep -q "ps_tool.*completion" ~/.zshrc 2>/dev/null; then
+        cat >> ~/.zshrc << 'ZSHRC'
+
+# ps_tool completion
+fpath=("$HOME/.zsh/completions" $fpath)
+autoload -Uz compinit && compinit
+ZSHRC
+        success "Complétion zsh activée — rechargez votre shell : source ~/.zshrc"
+    else
+        info "Complétion zsh déjà configurée dans ~/.zshrc"
+    fi
+else
+    warning "Fichier de complétion introuvable, complétion zsh non installée"
+fi
+
 success "ps_tool installé avec succès !"
 echo ""
 info "Vous pouvez maintenant utiliser: ps_tool <command>"
-info "Essayez: ps_tool help"
-echo ""
-info "Pour voir les outils disponibles: ps_tool list"
+info "Rechargez votre shell pour activer la complétion : source ~/.zshrc"
 

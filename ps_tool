@@ -38,6 +38,8 @@ Commands:
     shop <command>    Gérer les shops PrestaShop
     mbo <command>     Gérer le module ps_mbo
     account <command>  Gérer le module ps_accounts
+    web [start|stop]  Interface web (port 7337)
+    upgrade           Mettre à jour ps_tool depuis GitHub
     version, -v       Afficher la version actuelle
     help, -h          Afficher cette aide
 
@@ -46,6 +48,8 @@ Examples:
     ps_tool mbo install shop18
     ps_tool account install shop18
     ps_tool shop list
+    ps_tool web
+    ps_tool web stop
     ps_tool version
     ps_tool -v
 
@@ -77,6 +81,14 @@ main() {
         account)
             source "${SCRIPT_DIR}/lib/commands/account.sh"
             cmd_account "$@"
+            ;;
+        web)
+            source "${SCRIPT_DIR}/commands/web.sh"
+            cmd_web "$@"
+            ;;
+        upgrade)
+            source "${SCRIPT_DIR}/lib/commands/upgrade.sh"
+            cmd_upgrade "$@"
             ;;
         version|-v)
             source "${SCRIPT_DIR}/lib/commands/version.sh"
